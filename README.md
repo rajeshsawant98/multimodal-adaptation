@@ -1,178 +1,164 @@
-# 🧠 Multi-Modal Adaptation: In-Context Learning vs Fine-Tuning vs Retrieval-Augmented Generation
+# Multi-Modal Adaptation: In-Context Learning, Fine-Tuning, and Retrieval-Augmented Generation
 
-### 📘 Overview
-This repository implements a comparative study of **three major adaptation paradigms** —  
-**In-Context Learning (ICL)**, **Fine-Tuning**, and **Retrieval-Augmented Generation (RAG)** —  
-within **multi-modal vision-language models** such as **BLIP-2** and **CLIP**.  
-
-We benchmark their performance on **Image Captioning** and **Visual Question Answering (VQA)** tasks  
-across datasets like **MS-COCO**, **Flickr30k**, and **Visual Genome**, analyzing the trade-offs between  
-**accuracy**, **efficiency**, and **robustness**.
+### Overview
+This repository contains an empirical comparison of three adaptation paradigms—In-Context Learning (ICL), parameter-efficient fine-tuning (e.g., LoRA/adapters), and Retrieval-Augmented Generation (RAG)—applied to multi-modal vision-language models (notably BLIP-2 and CLIP). The study evaluates these approaches on Image Captioning and Visual Question Answering (VQA) benchmarks (MS-COCO, Flickr30k, Visual Genome) and analyzes trade-offs among predictive performance, computational efficiency, and robustness to domain shift.
 
 ---
 
-## 🎯 Objectives
+## Objectives
 
-- Benchmark ICL, parameter-efficient fine-tuning (LoRA/adapters), and RAG for vision-language tasks.  
-- Evaluate trade-offs in **accuracy**, **compute cost**, and **robustness** under domain shift.  
-- Provide reproducible baselines and insights for future multi-modal adaptation research.
+- Establish comparative baselines for In-Context Learning, parameter-efficient fine-tuning, and Retrieval-Augmented Generation in vision-language tasks.
+- Quantify trade-offs in accuracy, computational cost, and robustness under domain shift.
+- Provide reproducible experimental protocols and analysis to inform future research on multi-modal adaptation.
 
 ---
 
-## 🧩 Repository Structure
+## Repository structure
 
 ```
 multimodal-adaptation/
 ├── requirements.txt          # Core dependencies
-├── README.md                 # You are here
-│
+├── README.md
 ├── tests/
-│   └── smoke/                # Minimal sanity checks for all components
+│   └── smoke/                # Minimal sanity checks for major components
 │       ├── run_all.py
 │       ├── test_env.py       # verifies environment, Torch, CUDA/MPS
-│       ├── faiss_smoke.py    # FAISS vector index + retrieval
+│       ├── faiss_smoke.py    # FAISS vector index and retrieval
 │       ├── clip_embeddings_smoke.py  # CLIP image-text embeddings
 │       ├── lora_peft_smoke.py        # LoRA/PEFT fine-tuning setup
-│       ├── blip_caption_smoke.py     # BLIP-2 image captioning
-│       └── vqa_stub_smoke.py         # VQAv2 mini test
-│
-├── src/                      # (planned) training/evaluation modules
+│       ├── blip_caption_smoke.py     # BLIP-2 caption generation
+│       └── vqa_stub_smoke.py         # VQAv2 integration test
+├── src/                      # Training and evaluation modules
 │   ├── datasets/             # COCO, Flickr30k, VQAv2 loaders
 │   ├── models/               # BLIP-2, CLIP, PEFT wrappers
 │   ├── rag/                  # Retrieval-Augmented Generation pipeline
 │   ├── eval/                 # Metrics and evaluation scripts
-│   └── utils/                # Helpers and config
-│
-└── notebooks/                # exploratory experiments
+│   └── utils/                # Helper functions and configuration
+└── notebooks/                # Exploratory experiments and analysis
 ```
 
 ---
 
-## ⚙️ Environment Setup
+## Environment setup
 
-### 1️⃣ Create virtual environment
+1. Create a Python virtual environment and activate it:
 
 ```bash
 python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-### 2️⃣ Install dependencies
+2. Install required packages:
 
 ```bash
 pip install --upgrade pip setuptools wheel
 pip install -r requirements.txt
 ```
 
-💡 On macOS (M-series), PyTorch uses the **Metal (MPS)** backend automatically.  
-💡 On Linux with CUDA, FAISS-GPU and bitsandbytes will be used automatically.
+Notes:
+- On Apple Silicon (M-series), PyTorch may employ the Metal (MPS) backend. On Linux systems with CUDA, GPU-enabled FAISS and other GPU-optimized libraries may be used when available.
 
 ---
 
-## 📦 Libraries and Dependencies
+## Libraries and dependencies
 
-| Category | Library | Version | Purpose |
-|-----------|----------|----------|----------|
-| **Core ML** | `torch` | 2.4.0 | Deep learning backend (MPS / CUDA / CPU) |
-|  | `transformers` | 4.44.2 | Hugging Face models (CLIP, BLIP-2, etc.) |
-|  | `datasets` | 3.0.1 | Dataset loading and preprocessing (VQAv2, COCO) |
-|  | `faiss-cpu` / `faiss-gpu` | 1.8.0 | Vector indexing for retrieval (RAG) |
-|  | `peft` | 0.10.x | Parameter-Efficient Fine-Tuning (LoRA, adapters) |
-| **Vision / Image I/O** | `Pillow` | 10.x | Image loading and transformations |
-|  | `opencv-python` | 4.x | Optional — advanced image ops and visualization |
-| **Text / Tokenization** | `sentencepiece` | 0.2.x | Tokenization for BLIP-2 / OPT models |
-|  | `tokenizers` | 0.19.x | Fast subword tokenization (BPE / WordPiece) |
-| **Evaluation** | `pycocoevalcap` | latest | BLEU, ROUGE-L, CIDEr metrics for captioning |
-|  | `evaluate` | 0.4.x | Unified evaluation wrapper for HF metrics |
-| **Data & Utils** | `pandas` | 2.x | Data manipulation |
-|  | `numpy` | 1.26.x | Numerical operations |
-|  | `tqdm` | 4.x | Progress bars |
-| **Experiment Tracking (Optional)** | `wandb` | 0.17.x | Experiment logging & visualization |
-| **I/O / Networking** | `requests` | 2.32.x | Robust HTTP requests for image/data download |
-|  | `aiohttp` | 3.x | Async I/O (used internally by datasets) |
-| **System / Warnings** | `certifi` | latest | SSL cert verification |
-|  | `packaging` | latest | Version handling for model dependencies |
+The experiments rely on standard machine learning and data-processing libraries. Representative versions (used in prior experiments) are listed below; exact versions may be adjusted to match the execution environment.
 
-### 💡 Notes
+Core libraries
+- torch (e.g., 2.4.0): Deep learning backend (MPS / CUDA / CPU)
+- transformers (e.g., 4.44.2): Model implementations (CLIP, BLIP-2)
+- datasets (e.g., 3.0.1): Dataset loading and preprocessing
+- faiss-cpu / faiss-gpu (e.g., 1.8.0): Vector indexing for retrieval (RAG)
+- peft (e.g., 0.10.x): Parameter-efficient fine-tuning (LoRA, adapters)
 
-- On Apple Silicon, `torch.backends.mps` provides native GPU acceleration.  
-- `sitecustomize.py` silences tokenizer warnings:
-  ```python
-  import warnings
-  warnings.filterwarnings("ignore", message=r"`clean_up_tokenization_spaces`", category=FutureWarning)
-  ```
+Vision and I/O
+- Pillow (e.g., 10.x): Image loading and basic transformations
+- opencv-python (optional): Advanced image operations and visualization
+
+Text and tokenization
+- sentencepiece (e.g., 0.2.x): Tokenization used by some models (BLIP-2/OPT)
+- tokenizers (e.g., 0.19.x): Fast subword tokenizers
+
+Evaluation and utilities
+- pycocoevalcap: BLEU, ROUGE-L, CIDEr for captioning
+- evaluate (e.g., 0.4.x): Hugging Face evaluation utilities
+- pandas, numpy, tqdm: Data handling and progress reporting
+
+Optional infrastructure
+- wandb: Experiment tracking and visualization
+
+Note: On Apple Silicon, PyTorch may use the MPS backend. On GPU-enabled Linux systems, GPU variants of FAISS and other libraries should be preferred when available.
 
 ---
 
-## 🧪 Running Smoke Tests
+## Running smoke tests
 
-Run all smoke tests to verify environment and dependencies:
+To perform minimal verification of the environment and core components, run the smoke tests:
 
 ```bash
 cd tests/smoke
 python run_all.py
 ```
 
-If successful, you’ll see:
-
-```
-✅ ALL SMOKE TESTS PASSED
-```
-
-This validates:
-- CLIP image-text embeddings  
-- BLIP-2 caption generation  
-- LoRA fine-tuning pipeline  
-- FAISS vector retrieval  
-- VQAv2 dataset integration  
+A successful run reports that basic components are operational, including CLIP embeddings, BLIP-2 caption generation, LoRA fine-tuning plumbing, FAISS-based retrieval, and VQAv2 dataset integration.
 
 ---
 
-## 🧬 Model Components
+## Model components
 
-| Component | Purpose | Library |
-|------------|----------|----------|
-| **CLIP** | Contrastive Image-Text Pretraining | `openai/clip-vit-base-patch32` |
-| **BLIP-2** | Vision-Language model w/ Query Transformer | `Salesforce/blip2-opt-2.7b` |
-| **LoRA / PEFT** | Parameter-Efficient Fine-Tuning | `peft` |
-| **FAISS** | Fast nearest-neighbor retrieval for RAG | `faiss-cpu/faiss-gpu` |
-| **PyCOCOEvalCap** | Captioning metrics (BLEU, ROUGE, CIDEr) | `pycocoevalcap` |
+- CLIP (e.g., openai/clip-vit-base-patch32): Contrastive image-text encoder
+- BLIP-2 (e.g., Salesforce/blip2-opt-2.7b): Vision–language model employing a query transformer
+- LoRA / PEFT: Parameter-efficient fine-tuning techniques for adapting large models
+- FAISS: Nearest-neighbor retrieval for RAG pipelines
+- pycocoevalcap: Standard captioning metrics (BLEU, ROUGE-L, CIDEr)
 
 ---
 
-## 📊 Planned Experiments
+## Planned experiments
 
-| Phase | Description | Deliverables |
-|-------|--------------|--------------|
-| **Weeks 1-2** | Dataset setup, literature review, smoke testing | verified pipelines |
-| **Weeks 3-4** | Few-shot ICL baselines (captioning/VQA) | accuracy + qualitative results |
-| **Weeks 5-6** | LoRA fine-tuning & RAG integration | efficiency curves |
-| **Week 7** | Cross-domain evaluation (COCO → Visual Genome) | robustness metrics |
-| **Week 8** | Consolidate results + final report & slides | comparative analysis |
+The project roadmap outlines dataset preparation, baseline establishment for few-shot ICL, application of parameter-efficient fine-tuning and RAG integration, followed by cross-domain robustness evaluation and consolidation of results.
 
----
-
-## 🧠 Evaluation Metrics
-
-| Task | Metric | Tool |
-|------|---------|------|
-| **Captioning** | BLEU-4, ROUGE-L, CIDEr | `pycocoevalcap` |
-| **VQA** | Accuracy by answer type | `VQAv2` evaluator |
-| **Efficiency** | FLOPs, trainable params, latency | PyTorch profiler |
-| **Robustness** | COCO → VG domain transfer | custom scripts |
+Representative phases
+- Dataset setup and validation
+- Few-shot ICL baselines for captioning and VQA
+- LoRA fine-tuning and RAG integration experiments
+- Cross-domain evaluation (e.g., COCO → Visual Genome)
+- Consolidation of results and preparation of summary materials
 
 ---
 
-## ⚡ Known Good Environment
+## Evaluation metrics
 
-| Component | Version |
-|------------|----------|
-| Python | 3.12.x |
-| Torch | 2.4.0 (MPS or CUDA) |
-| Transformers | 4.44.2 |
-| Datasets | 3.0.1 |
-| FAISS | 1.8.0 |
-| BLIP-2 | 2.7B model |
-| CLIP | ViT-B/32 |
+- Captioning: BLEU-4, ROUGE-L, CIDEr (pycocoevalcap)
+- VQA: Accuracy (by answer type), using standard VQAv2 evaluation procedures
+- Efficiency: FLOPs, number of trainable parameters, latency (PyTorch profiler)
+- Robustness: Cross-domain transfer experiments (e.g., COCO → Visual Genome)
 
 ---
+
+## Known good environment
+
+Representative versions used in experiments:
+- Python 3.12.x
+- PyTorch 2.4.0 (MPS or CUDA backends)
+- Transformers 4.44.2
+- datasets 3.0.1
+- FAISS 1.8.0
+
+## Datasets
+
+The primary datasets considered in this work include MS-COCO, Flickr30k, VQAv2, and Visual Genome. Preprocessing is standardized across experiments (e.g., image resizing, text normalization) and tokenization is model-specific (SentencePiece for some models, BPE for others).
+
+---
+
+## Integration plan
+
+Stages
+- In-Context Learning: Evaluate zero-shot and few-shot performance for captioning and VQA
+- Parameter-efficient fine-tuning: Apply LoRA/PEFT methods for task adaptation
+- Retrieval-Augmented Generation: Integrate FAISS-based retrieval to provide context for generation
+- Cross-domain evaluation: Assess generalization (e.g., COCO → Visual Genome)
+
+---
+
+For additional details, refer to the code modules under `src/` and the smoke tests under `tests/smoke`.
