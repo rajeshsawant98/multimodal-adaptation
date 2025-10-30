@@ -2,16 +2,17 @@
 dataset_load_smoke.py
 Runs sanity checks for COCO and VQAv2 dataset loaders.
 """
+import os
+import sys
 
-import sys, os, pathlib, textwrap
-from pprint import pprint
-
-# make sure repo root is on sys.path
-ROOT = pathlib.Path(__file__).resolve().parents[2]
-sys.path.append(str(ROOT / "src"))
-
-from datasets.coco_loader import load_coco_small
-from datasets.vqa_loader import load_vqa_small
+# --- Fix Python path automatically ---
+current_dir = os.path.dirname(__file__)
+project_root = os.path.abspath(os.path.join(current_dir, "../../src"))
+if project_root not in sys.path:
+    sys.path.insert(0, project_root)
+    
+from data_loaders.coco_loader import load_coco_small
+from data_loaders.vqa_loader import load_vqa_small  # only if you use it
 
 
 def print_header(title: str):
@@ -33,7 +34,7 @@ def summarize_record(record: dict, keys=("image", "caption", "question", "answer
                 summary[k] = None
             else:
                 summary[k] = f"<{type(val).__name__}>"
-    pprint(summary)
+    print(summary)
 
 
 if __name__ == "__main__":

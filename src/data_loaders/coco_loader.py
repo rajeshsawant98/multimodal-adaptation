@@ -1,4 +1,5 @@
-from datasets import load_dataset, DownloadConfig
+from huggingface_hub import hf_hub_download  # optional, if you use it
+from datasets import load_dataset, DownloadConfig  # <-- use full module name
 from PIL import Image
 from io import BytesIO
 import requests
