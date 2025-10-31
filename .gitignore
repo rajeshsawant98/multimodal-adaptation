@@ -4,3 +4,11 @@ __pycache__/
 results/
 rag_index/
 
+# Ignore large data and logs
+data/
+wandb/
+__pycache__/
+*.log
+*.pt
+*.bin
+*.safetensors
