@@ -1,7 +1,8 @@
 # Core DL
-torch==2.4.0
-torchvision==0.19.0
-torchaudio==2.4.0
+torch==2.6.0
+torchvision==0.21.0
+torchaudio==2.6.0
+
 
 # Hugging Face
 transformers==4.44.2
@@ -11,12 +12,12 @@ evaluate==0.4.3
 peft==0.11.1
 
 # CUDA-only quantization (Linux x86_64 w/ CUDA)
-bitsandbytes==0.43.3; platform_system=="Linux" and platform_machine=="x86_64"
+# bitsandbytes==0.43.3; platform_system=="Linux" and platform_machine=="x86_64"
 
 # Retrieval / Embeddings
 open_clip_torch==2.32.0
-faiss-gpu==1.8.0; platform_system=="Linux" and platform_machine=="x86_64"
-faiss-cpu==1.8.0; platform_system!="Linux" or platform_machine!="x86_64"
+# faiss-gpu==1.8.0; platform_system=="Linux" and platform_machine=="x86_64"
+faiss-cpu==1.10.0
 
 # Captioning / Evaluation
 pycocotools==2.0.8
