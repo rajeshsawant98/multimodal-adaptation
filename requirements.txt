@@ -35,3 +35,5 @@ opencv-python==4.10.0.84
 
 # Experiment tracking (optional)
 wandb==0.17.8
+
+python-dotenv
