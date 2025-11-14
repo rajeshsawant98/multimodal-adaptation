@@ -4,15 +4,15 @@ BLIP-2 OPT VQA ICL (Type-Aware, Clean Answers)
 - Uses BLIP-2 OPT-2.7B for VQA
 - K-shot in-context learning with TYPE-AWARE sampling
 - Few-shot pool = full vqa_train.jsonl
-- Eval / debugging = vqa_debug.jsonl
+- Eval / debugging file is passed via --eval_file
 - Stores both raw decoded answer and cleaned span after "Answer:"
 - NO normalization of answers (you keep full text)
 
 Run:
-  python src/stage3_blip2_opt_vqa_icl_typeaware.py --K 0 --debug_limit 50
-  python src/stage3_blip2_opt_vqa_icl_typeaware.py --K 1 --debug_limit 50
-  python src/stage3_blip2_opt_vqa_icl_typeaware.py --K 3 --debug_limit 50
-  python src/stage3_blip2_opt_vqa_icl_typeaware.py --K 5 --debug_limit 50
+  python src/stage3_blip2_opt_vqa_icl_typeaware.py --K 0 --eval_file vqa_debug.jsonl
+  python src/stage3_blip2_opt_vqa_icl_typeaware.py --K 1 --eval_file vqa_debug.jsonl
+  python src/stage3_blip2_opt_vqa_icl_typeaware.py --K 3 --eval_file vqa_debug.jsonl
+  python src/stage3_blip2_opt_vqa_icl_typeaware.py --K 5 --eval_file vqa_debug.jsonl
 """
 
 import os
@@ -57,100 +57,66 @@ model = Blip2ForConditionalGeneration.from_pretrained(
 
 
 # -----------------------------------------------------
-# Question type detection (advanced-ish, inline version)
+# Question type detection (same as before)
 # -----------------------------------------------------
-
 def detect_question_type(q: str) -> str:
-    """
-    Heuristic question-type classifier.
-    Matches the main categories you saw in analyze_vqa_types_advanced.py:
-      yes/no, count, color, object, type, location, relation, food, activity,
-      animal, reason, sport, scene, who, material, brand, shape, time, weather, other
-    """
     s = q.strip().lower().rstrip(" ?.")
 
-    # yes/no
     if s.startswith(("is ", "are ", "do ", "does ", "did ", "can ", "could ",
                      "has ", "have ", "was ", "were ", "will ", "would ", "should ")):
         return "yes/no"
 
-    # count
     if s.startswith(("how many", "how much", "number of")):
         return "count"
 
-    # color
     if "color" in s or "colour" in s:
         return "color"
 
-    # time
     if s.startswith("when ") or "time of day" in s:
         return "time"
 
-    # weather
     if "weather" in s or "temperature" in s:
         return "weather"
 
-    # location
     if s.startswith("where ") or "what city" in s or "what country" in s:
         return "location"
 
-    # reason / why
     if s.startswith("why "):
         return "reason"
 
-    # who
     if s.startswith("who "):
         return "who"
 
-    # type
     if s.startswith(("what type", "what kind")):
         return "type"
 
-    # relation
-    if any(p in s for p in [
-        "next to", "in front of", "behind", "on top of", "under ", "above ",
-        "beside", "between", "around"
-    ]):
+    if any(p in s for p in ["next to", "in front of", "behind", "on top of", "under ", "above ", "beside", "between", "around"]):
         return "relation"
 
-    # shape
     if "shape" in s:
         return "shape"
 
-    # food
-    if any(w in s for w in ["pizza", "sandwich", "burger", "hot dog", "wine",
-                            "beer", "food", "eat", "eating", "drinking", "cake"]):
+    if any(w in s for w in ["pizza", "sandwich", "burger", "hot dog", "wine", "beer", "food", "eat", "eating", "drinking", "cake"]):
         return "food"
 
-    # sport
-    if any(w in s for w in [
-        "sport", "tennis", "baseball", "basketball", "soccer", "football",
-        "skiing", "snowboard", "skateboard", "surfing"
-    ]):
+    if any(w in s for w in ["sport", "tennis", "baseball", "basketball", "soccer", "football", "skiing", "snowboard", "skateboard", "surfing"]):
         return "sport"
 
-    # animal
-    if any(w in s for w in ["animal", "dog", "cat", "horse", "elephant",
-                            "giraffe", "zebra", "bear", "cow", "sheep", "bird"]):
+    if any(w in s for w in ["animal", "dog", "cat", "horse", "elephant", "giraffe", "zebra", "bear", "cow", "sheep", "bird"]):
         return "animal"
 
-    # material
     if "made of" in s or "material" in s:
         return "material"
 
-    # brand / logo
     if any(w in s for w in ["brand", "logo", "company", "advertised"]):
         return "brand"
 
-    # scene / room type
     if any(w in s for w in ["what room is this", "what kind of room", "which room"]):
         return "scene"
 
-    # activity
-    if "doing" in s or s.startswith("what is the man doing") or s.startswith("what is the woman doing"):
+    if "doing" in s:
         return "activity"
 
-    # explicit object identification
     if s.startswith("what is this") or s.startswith("what is the"):
         return "object"
 
@@ -160,11 +126,7 @@ def detect_question_type(q: str) -> str:
 # -----------------------------------------------------
 # Few-shot ground-truth extraction
 # -----------------------------------------------------
-
 def extract_gt_from_sample(sample: dict) -> str:
-    """
-    Safely get a single ground-truth answer from any VQA v2-like record.
-    """
     if "answer_gt" in sample:
         return sample["answer_gt"]
     if "answer" in sample:
@@ -178,9 +140,8 @@ def extract_gt_from_sample(sample: dict) -> str:
 
 
 # -----------------------------------------------------
-# Load few-shot bank (full train set) and build type index
+# Load few-shot bank + type index
 # -----------------------------------------------------
-
 print(f"\n📂 Loading few-shot bank from: {VQA_TRAIN_PATH}")
 fewshot_bank = [json.loads(l) for l in open(VQA_TRAIN_PATH)]
 type_index = defaultdict(list)
@@ -196,44 +157,21 @@ for t, lst in sorted(type_index.items(), key=lambda x: -len(x[1])):
 
 
 # -----------------------------------------------------
-# Few-shot block builder (TYPE AWARE)
+# Few-shot block builder
 # -----------------------------------------------------
-
 def sample_few_shots(query_q: str, K: int):
-    """
-    Type-aware few-shot sampling.
-    - Detect type of the query question
-    - Sample K examples from that type
-    - If not enough, fall back to global pool
-    """
     if K <= 0:
         return []
-
     q_type = detect_question_type(query_q)
     pool = type_index.get(q_type, [])
-
-    # if too few in that type, mix with full bank
     if len(pool) < K:
         pool = pool + fewshot_bank
-
     return random.sample(pool, K)
 
 
 def build_examples_block_for_query(question: str, K: int) -> str:
-    """
-    Build a few-shot examples block for ICL.
-    Format:
-      ### Examples ###
-      Q: ...
-      A: ...
-      Q: ...
-      A: ...
-
-    Or empty string if K == 0.
-    """
     if K <= 0:
         return ""
-
     shots = sample_few_shots(question, K)
     lines = ["### Examples ###"]
     for s in shots:
@@ -247,28 +185,14 @@ def build_examples_block_for_query(question: str, K: int) -> str:
 # -----------------------------------------------------
 # Prompt + answer cleaning
 # -----------------------------------------------------
-
 def make_prompt(question: str, examples_block: str) -> str:
-    """
-    Simple, stable prompt:
-      [few-shot block if any]
-      Question: ...
-      Answer:
-    """
     if examples_block:
         return f"{examples_block}Question: {question}\nAnswer:"
-    else:
-        return f"Question: {question}\nAnswer:"
+    return f"Question: {question}\nAnswer:"
 
 
 def extract_answer_span(decoded: str) -> str:
-    """
-    From model decoded string, keep only the part after 'Answer:' if present.
-    Otherwise, return the whole decoded string.
-    We DO NOT normalize; we keep exact text.
-    """
     text = decoded.strip()
-    # Split on 'Answer:' (case-insensitive)
     lower = text.lower()
     key = "answer:"
     idx = lower.find(key)
@@ -278,12 +202,20 @@ def extract_answer_span(decoded: str) -> str:
 
 
 # -----------------------------------------------------
-# Main ICL loop
+# Main ICL loop (PATCHED)
 # -----------------------------------------------------
+def run_vqa_icl(K: int = 0, debug_limit: int | None = None, eval_file=None, out_suffix=""):
 
-def run_vqa_icl(K: int = 0, debug_limit: int | None = None):
-    input_file = VQA_DEBUG_PATH
-    output_file = os.path.join(OUT_DIR, f"vqa_opt_K{K}.jsonl")
+    # FIX 1: correct eval file selection
+    input_file = os.path.join(PREPROCESSED_DIR, eval_file)
+
+    # FIX 2: correct output naming
+    if out_suffix:
+        output_name = f"vqa_opt_{out_suffix}.jsonl"
+    else:
+        output_name = f"vqa_opt_K{K}.jsonl"
+
+    output_file = os.path.join(OUT_DIR, output_name)
 
     print(f"\n📂 Input:  {input_file}")
     print(f"💾 Output: {output_file}")
@@ -296,29 +228,19 @@ def run_vqa_icl(K: int = 0, debug_limit: int | None = None):
         if debug_limit is not None and idx >= debug_limit:
             break
 
-        # Ground truth
         gt = extract_gt_from_sample(sample)
-
-        # Image
         img_path = os.path.join(DATASETS_DIR, sample["image_path"])
+
         try:
             image = Image.open(img_path).convert("RGB")
         except Exception:
             continue
 
-        # Few-shot block
         examples_block = build_examples_block_for_query(sample["question"], K)
         prompt = make_prompt(sample["question"], examples_block)
 
-        # Encode
-        inputs = processor(
-            images=image,
-            text=prompt,
-            padding=True,
-            return_tensors="pt",
-        ).to(device)
+        inputs = processor(images=image, text=prompt, padding=True, return_tensors="pt").to(device)
 
-        # Generate
         with torch.no_grad():
             out_tokens = model.generate(
                 **inputs,
@@ -330,7 +252,6 @@ def run_vqa_icl(K: int = 0, debug_limit: int | None = None):
         decoded = processor.decode(out_tokens[0], skip_special_tokens=True).strip()
         cleaned = extract_answer_span(decoded)
 
-        # Save
         fout.write(json.dumps({
             "image_path": sample["image_path"],
             "question": sample["question"],
@@ -350,8 +271,16 @@ if __name__ == "__main__":
     import argparse
 
     parser = argparse.ArgumentParser()
-    parser.add_argument("--K", type=int, default=0, help="number of ICL examples")
-    parser.add_argument("--debug_limit", type=int, default=None, help="limit for quick tests")
+    parser.add_argument("--K", type=int, default=0)
+    parser.add_argument("--debug_limit", type=int, default=None)
+    parser.add_argument("--eval_file", type=str, default="vqa_debug.jsonl")
+    parser.add_argument("--out_suffix", type=str, default="")
 
     args = parser.parse_args()
-    run_vqa_icl(K=args.K, debug_limit=args.debug_limit)
+
+    run_vqa_icl(
+        K=args.K,
+        debug_limit=args.debug_limit,
+        eval_file=args.eval_file,
+        out_suffix=args.out_suffix,
+    )

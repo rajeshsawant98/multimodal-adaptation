@@ -1,0 +1,132 @@
+====== VQA OPT ICL — Stratified Eval ======
+SLURM Job ID: 39141546
+Node: sg237
+GPU: 0
+===========================================
+Paths set:
+DATASETS_DIR       = /scratch/rsawant5/shared
+OUTPUT_JSONL_DIR   = /scratch/rsawant5/shared/shared_preprocessed
+EXPERIMENTS_DIR    = /scratch/rsawant5/shared/all_experiments
+
+Using STRATIFIED evaluation file:
+/scratch/rsawant5/shared/shared_preprocessed/vqa_eval_stratified.jsonl
+
+--------------- K=0 ----------------
+
+🚀 Loading VQA model: Salesforce/blip2-opt-2.7b
+
+📂 Loading few-shot bank from: /scratch/rsawant5/shared/shared_preprocessed/vqa_train.jsonl
+✅ Few-shot bank loaded.
+   Types and counts:
+   yes/no    : 176492
+   other     : 60656
+   count     : 49141
+   color     : 44967
+   object    : 22174
+   type      : 19279
+   location  : 13619
+   animal    : 13211
+   relation  : 6971
+   food      : 6903
+   activity  : 6344
+   sport     : 5032
+   reason    : 4804
+   who       : 3309
+   brand     : 2881
+   material  : 2852
+   scene     : 1617
+   shape     : 1348
+   weather   : 1082
+   time      : 1075
+Finished K=0
+
+--------------- K=1 ----------------
+
+🚀 Loading VQA model: Salesforce/blip2-opt-2.7b
+
+📂 Loading few-shot bank from: /scratch/rsawant5/shared/shared_preprocessed/vqa_train.jsonl
+✅ Few-shot bank loaded.
+   Types and counts:
+   yes/no    : 176492
+   other     : 60656
+   count     : 49141
+   color     : 44967
+   object    : 22174
+   type      : 19279
+   location  : 13619
+   animal    : 13211
+   relation  : 6971
+   food      : 6903
+   activity  : 6344
+   sport     : 5032
+   reason    : 4804
+   who       : 3309
+   brand     : 2881
+   material  : 2852
+   scene     : 1617
+   shape     : 1348
+   weather   : 1082
+   time      : 1075
+Finished K=1
+
+--------------- K=3 ----------------
+
+🚀 Loading VQA model: Salesforce/blip2-opt-2.7b
+
+📂 Loading few-shot bank from: /scratch/rsawant5/shared/shared_preprocessed/vqa_train.jsonl
+✅ Few-shot bank loaded.
+   Types and counts:
+   yes/no    : 176492
+   other     : 60656
+   count     : 49141
+   color     : 44967
+   object    : 22174
+   type      : 19279
+   location  : 13619
+   animal    : 13211
+   relation  : 6971
+   food      : 6903
+   activity  : 6344
+   sport     : 5032
+   reason    : 4804
+   who       : 3309
+   brand     : 2881
+   material  : 2852
+   scene     : 1617
+   shape     : 1348
+   weather   : 1082
+   time      : 1075
+Finished K=3
+
+--------------- K=5 ----------------
+
+🚀 Loading VQA model: Salesforce/blip2-opt-2.7b
+
+📂 Loading few-shot bank from: /scratch/rsawant5/shared/shared_preprocessed/vqa_train.jsonl
+✅ Few-shot bank loaded.
+   Types and counts:
+   yes/no    : 176492
+   other     : 60656
+   count     : 49141
+   color     : 44967
+   object    : 22174
+   type      : 19279
+   location  : 13619
+   animal    : 13211
+   relation  : 6971
+   food      : 6903
+   activity  : 6344
+   sport     : 5032
+   reason    : 4804
+   who       : 3309
+   brand     : 2881
+   material  : 2852
+   scene     : 1617
+   shape     : 1348
+   weather   : 1082
+   time      : 1075
+Finished K=5
+
+===========================================
+ALL ICL RUNS COMPLETED
+===========================================
