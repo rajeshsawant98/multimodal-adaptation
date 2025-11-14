@@ -13,152 +13,238 @@ This repository contains an empirical comparison of three adaptation paradigms�
 
 ---
 
-## Repository structure
+
+## In-Context Learning (ICL) using BLIP-2 OPT 2.7b
+This repository provides a structured framework for evaluating multi-modal adaptation methods—specifically **In-Context Learning (ICL)**—using state-of-the-art vision–language models such as **BLIP-2 OPT 2.7B**. Current efforts focus on **Visual Question Answering (VQA)** using systematic preprocessing, stratified sampling, type-aware ICL prompting, and multi-level answer evaluation (exact, normalized, fuzzy).
+
+The project is modular and designed for reproducibility, scalability on HPC systems (ASU SOL), and clean extensibility toward fine-tuning and RAG-based pipelines.
+
+---
+
+## Table of Contents
+- [Overview](#overview)  
+- [Repository Structure](#repository-structure)  
+- [Environment Setup](#environment-setup)  
+- [Datasets](#datasets)  
+- [Data Preprocessing](#data-preprocessing)  
+- [VQA Stratified Evaluation](#vqa-stratified-evaluation)  
+- [In-Context Learning (BLIP-2 OPT)](#in-context-learning-blip-2-opt)  
+- [Evaluation Pipeline](#evaluation-pipeline)  
+- [Results Summary](#results-summary)  
+- [Reproducing Experiments](#reproducing-experiments)  
+- [Citation](#citation)
+
+---
+
+## Repository Structure
 
 ```
 multimodal-adaptation/
-├── requirements.txt          # Core dependencies
-├── README.md
-├── tests/
-│   └── smoke/                # Minimal sanity checks for major components
-│       ├── run_all.py
-│       ├── test_env.py       # verifies environment, Torch, CUDA/MPS
-│       ├── faiss_smoke.py    # FAISS vector index and retrieval
-│       ├── clip_embeddings_smoke.py  # CLIP image-text embeddings
-│       ├── lora_peft_smoke.py        # LoRA/PEFT fine-tuning setup
-│       ├── blip_caption_smoke.py     # BLIP-2 caption generation
-│       └── vqa_stub_smoke.py         # VQAv2 integration test
-├── src/                      # Training and evaluation modules
-│   ├── datasets/             # COCO, Flickr30k, VQAv2 loaders
-│   ├── models/               # BLIP-2, CLIP, PEFT wrappers
-│   ├── rag/                  # Retrieval-Augmented Generation pipeline
-│   ├── eval/                 # Metrics and evaluation scripts
-│   └── utils/                # Helper functions and configuration
-└── notebooks/                # Exploratory experiments and analysis
+│
+├── src/
+│   ├── ICL/
+│   │   ├── stage1_data_prep/
+│   │   │   ├── analyze_vqa_types_advanced.py
+│   │   │   ├── build_stratified_vqa_eval_set.py
+│   │   │   ├── generate_vqa_testset.py
+│   │   │   └── validate_jsonl_datasets.py
+│   │   ├── stage2_baseline/
+│   │   ├── stage3_vqa_blip2/
+│   │   │   └── stage3_blip2_opt_vqa_icl_typeaware.py
+│   │   └── stage4_evaluation/
+│   │       └── eval_vqa_stratified_full.py
+│   │
+│   ├── datasets/
+│   ├── models/
+│   ├── rag/
+│   ├── utils/
+│
+├── notebooks/
+├── tests/smoke/
+└── README.md
 ```
 
 ---
 
-## Environment setup
+## Environment Setup
 
-1. Create a Python virtual environment and activate it:
-
-```bash
+```
 python3 -m venv .venv
 source .venv/bin/activate
-```
 
-2. Install required packages:
-
-```bash
-pip install --upgrade pip setuptools wheel
+pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
-Notes:
-- On Apple Silicon (M-series), PyTorch may employ the Metal (MPS) backend. On Linux systems with CUDA, GPU-enabled FAISS and other GPU-optimized libraries may be used when available.
+Recommended versions:
+
+- Python ≥ 3.10  
+- PyTorch ≥ 2.1 (CUDA or MPS)  
+- Transformers ≥ 4.44  
+- SentencePiece, Pillow, tqdm, pandas  
 
 ---
-
-## Libraries and dependencies
-
-The experiments rely on standard machine learning and data-processing libraries. Representative versions (used in prior experiments) are listed below; exact versions may be adjusted to match the execution environment.
-
-Core libraries
-- torch (e.g., 2.4.0): Deep learning backend (MPS / CUDA / CPU)
-- transformers (e.g., 4.44.2): Model implementations (CLIP, BLIP-2)
-- datasets (e.g., 3.0.1): Dataset loading and preprocessing
-- faiss-cpu / faiss-gpu (e.g., 1.8.0): Vector indexing for retrieval (RAG)
-- peft (e.g., 0.10.x): Parameter-efficient fine-tuning (LoRA, adapters)
-
-Vision and I/O
-- Pillow (e.g., 10.x): Image loading and basic transformations
-- opencv-python (optional): Advanced image operations and visualization
-
-Text and tokenization
-- sentencepiece (e.g., 0.2.x): Tokenization used by some models (BLIP-2/OPT)
-- tokenizers (e.g., 0.19.x): Fast subword tokenizers
-
-Evaluation and utilities
-- pycocoevalcap: BLEU, ROUGE-L, CIDEr for captioning
-- evaluate (e.g., 0.4.x): Hugging Face evaluation utilities
-- pandas, numpy, tqdm: Data handling and progress reporting
-
-Optional infrastructure
-- wandb: Experiment tracking and visualization
-
-Note: On Apple Silicon, PyTorch may use the MPS backend. On GPU-enabled Linux systems, GPU variants of FAISS and other libraries should be preferred when available.
-
----
-
-## Running smoke tests
-
-To perform minimal verification of the environment and core components, run the smoke tests:
-
-```bash
-cd tests/smoke
-python run_all.py
-```
-
-A successful run reports that basic components are operational, including CLIP embeddings, BLIP-2 caption generation, LoRA fine-tuning plumbing, FAISS-based retrieval, and VQAv2 dataset integration.
-
----
-
-## Model components
-
-- CLIP (e.g., openai/clip-vit-base-patch32): Contrastive image-text encoder
-- BLIP-2 (e.g., Salesforce/blip2-opt-2.7b): Vision–language model employing a query transformer
-- LoRA / PEFT: Parameter-efficient fine-tuning techniques for adapting large models
-- FAISS: Nearest-neighbor retrieval for RAG pipelines
-- pycocoevalcap: Standard captioning metrics (BLEU, ROUGE-L, CIDEr)
-
----
-
-## Planned experiments
-
-The project roadmap outlines dataset preparation, baseline establishment for few-shot ICL, application of parameter-efficient fine-tuning and RAG integration, followed by cross-domain robustness evaluation and consolidation of results.
-
-Representative phases
-- Dataset setup and validation
-- Few-shot ICL baselines for captioning and VQA
-- LoRA fine-tuning and RAG integration experiments
-- Cross-domain evaluation (e.g., COCO → Visual Genome)
-- Consolidation of results and preparation of summary materials
-
----
-
-## Evaluation metrics
-
-- Captioning: BLEU-4, ROUGE-L, CIDEr (pycocoevalcap)
-- VQA: Accuracy (by answer type), using standard VQAv2 evaluation procedures
-- Efficiency: FLOPs, number of trainable parameters, latency (PyTorch profiler)
-- Robustness: Cross-domain transfer experiments (e.g., COCO → Visual Genome)
-
----
-
-## Known good environment
-
-Representative versions used in experiments:
-- Python 3.12.x
-- PyTorch 2.4.0 (MPS or CUDA backends)
-- Transformers 4.44.2
-- datasets 3.0.1
-- FAISS 1.8.0
 
 ## Datasets
 
-The primary datasets considered in this work include MS-COCO, Flickr30k, VQAv2, and Visual Genome. Preprocessing is standardized across experiments (e.g., image resizing, text normalization) and tokenization is model-specific (SentencePiece for some models, BPE for others).
+### VQAv2
+
+Expected directory structure:
+
+```
+DATASETS_DIR/
+└── VQAv2/
+    ├── train2014/
+    ├── val2014/
+    ├── annotations/
+    └── questions/
+```
+
+The preprocessing scripts convert these into unified **JSONL** files with aligned fields:
+
+- `vqa_train.jsonl`
+- `vqa_val.jsonl`
+- `vqa_debug.jsonl`
+- `vqa_eval_stratified.jsonl`
 
 ---
 
-## Integration plan
+## Data Preprocessing
 
-Stages
-- In-Context Learning: Evaluate zero-shot and few-shot performance for captioning and VQA
-- Parameter-efficient fine-tuning: Apply LoRA/PEFT methods for task adaptation
-- Retrieval-Augmented Generation: Integrate FAISS-based retrieval to provide context for generation
-- Cross-domain evaluation: Assess generalization (e.g., COCO → Visual Genome)
+Provided under:
+
+```
+src/ICL/stage1_data_prep/
+```
+
+### Core scripts
+
+| Script | Purpose |
+|--------|---------|
+| `analyze_vqa_types_advanced.py` | Extracts VQA question types using rule-based classifier with 20+ categories. |
+| `build_stratified_vqa_eval_set.py` | Creates a *balanced 3150-sample evaluation split* with fixed counts per question type. |
+| `validate_jsonl_datasets.py` | Ensures JSONL consistency, missing images, schema validation. |
+
+To generate the stratified eval set:
+
+```
+python src/ICL/stage1_data_prep/build_stratified_vqa_eval_set.py     --train_jsonl shared_preprocessed/vqa_train.jsonl     --val_jsonl shared_preprocessed/vqa_val.jsonl     --out_file shared_preprocessed/vqa_eval_stratified.jsonl
+```
 
 ---
 
-For additional details, refer to the code modules under `src/` and the smoke tests under `tests/smoke`.
+## VQA Stratified Evaluation
+
+We use a **balanced evaluation set**:  
+- 3150 total samples  
+- 21 question types × 150 samples each  
+
+This avoids dataset bias (e.g., yes/no dominating other categories).
+
+---
+
+## In-Context Learning (BLIP-2 OPT)
+
+Path:
+
+```
+src/ICL/stage3_vqa_blip2/stage3_blip2_opt_vqa_icl_typeaware.py
+```
+
+Key features:
+
+- BLIP-2 OPT-2.7B model  
+- Type-aware few-shot example selection  
+- Clean answer extraction  
+- Deterministic decoding (beam search, no sampling)  
+- No normalization during inference (evaluation handles that)  
+
+Run example:
+
+```
+python src/ICL/stage3_vqa_blip2/stage3_blip2_opt_vqa_icl_typeaware.py     --K 3     --eval_file vqa_eval_stratified.jsonl     --out_suffix strat_K3
+```
+
+---
+
+## Evaluation Pipeline
+
+Script:
+
+```
+src/ICL/stage4_evaluation/eval_vqa_stratified_full.py
+```
+
+Supports:
+
+- Exact match  
+- Normalized match (lowercase, remove articles/punctuation)  
+- Fuzzy match (Levenshtein ≥ 90%)  
+- Per-type grouped metrics  
+- CSV + JSON output  
+
+Run:
+
+```
+python eval_vqa_stratified_full.py   --gt_file shared_preprocessed/vqa_eval_stratified.jsonl   --pred_files vqa_opt_strat_K0.jsonl vqa_opt_strat_K1.jsonl ...   --out_prefix vqa_opt_strat
+```
+
+---
+
+## Results Summary (BLIP-2 OPT)
+
+| K-shot | Accuracy (Combined) |
+|--------|---------------------|
+| 0 | 0.131 |
+| 1 | 0.264 |
+| 3 | **0.299** |
+| 5 | 0.289 |
+
+Notes:
+
+- Improvement saturates around K=3  
+- Some types remain challenging (reasoning, location)  
+- Color, yes/no, and scene questions improve significantly with ICL  
+
+---
+
+## Reproducing Experiments
+
+### Step 1 — Preprocess datasets
+```
+python src/ICL/stage1_data_prep/validate_jsonl_datasets.py
+python src/ICL/stage1_data_prep/build_stratified_vqa_eval_set.py
+```
+
+### Step 2 — Run BLIP-2 OPT ICL
+```
+python src/ICL/stage3_vqa_blip2/stage3_blip2_opt_vqa_icl_typeaware.py --K 3 --eval_file vqa_eval_stratified.jsonl
+```
+
+### Step 3 — Evaluate predictions
+```
+python src/ICL/stage4_evaluation/eval_vqa_stratified_full.py   --gt_file vqa_eval_stratified.jsonl   --pred_files vqa_opt_strat_K0.jsonl ...
+```
+
+---
+
+## Citation
+
+If you use this repository in academic or research work:
+
+```
+@software{multimodal_adaptation_2025,
+  title={Multi-Modal Adaptation Framework: Vision--Language ICL and Evaluation},
+  author={Sawant, Rajesh A. and contributors},
+  year={2025},
+  url={https://github.com/...}
+}
+```
+
+---
+
+## Contributions
+
+Contributions, issues, and feature requests are welcome.  
+Please open a Pull Request or Issue on GitHub.
+
